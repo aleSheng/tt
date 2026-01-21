@@ -6,7 +6,46 @@ import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { success, error, warn, info } from "../lib/output.js";
 
-// Skill 安装目录
+// 支持的 AI 平台
+type AITarget = "claude" | "codex" | "cursor" | "copilot" | "all";
+
+interface TargetConfig {
+  name: string;
+  description: string;
+  getPath: (cwd?: string) => string;
+  fileName: string;
+}
+
+const TARGET_CONFIGS: Record<Exclude<AITarget, "all">, TargetConfig> = {
+  claude: {
+    name: "Claude Code",
+    description: "Claude Code / Anthropic Claude",
+    getPath: () => join(homedir(), ".claude", "skills", "tagtime-cli", "SKILL.md"),
+    fileName: "SKILL.md",
+  },
+  codex: {
+    name: "Codex CLI",
+    description: "OpenAI Codex CLI / OpenCode",
+    getPath: (cwd = process.cwd()) => join(cwd, "AGENTS.md"),
+    fileName: "AGENTS.md",
+  },
+  cursor: {
+    name: "Cursor",
+    description: "Cursor AI Editor",
+    getPath: (cwd = process.cwd()) => join(cwd, ".cursor", "rules", "tagtime.mdc"),
+    fileName: "tagtime.mdc",
+  },
+  copilot: {
+    name: "GitHub Copilot",
+    description: "GitHub Copilot",
+    getPath: (cwd = process.cwd()) => join(cwd, ".github", "copilot-instructions.md"),
+    fileName: "copilot-instructions.md",
+  },
+};
+
+const ALL_TARGETS: Exclude<AITarget, "all">[] = ["claude", "codex", "cursor", "copilot"];
+
+// Legacy constants for backward compatibility
 const CLAUDE_SKILLS_DIR = join(homedir(), ".claude", "skills");
 const SKILL_NAME = "tagtime-cli";
 const SKILL_DIR = join(CLAUDE_SKILLS_DIR, SKILL_NAME);
@@ -55,7 +94,135 @@ async function getBuiltinVersion(): Promise<string> {
   }
 }
 
-// 安装 Skill
+// 生成特定平台的内容
+function generateTargetContent(baseContent: string, target: Exclude<AITarget, "all">, version: string): string {
+  // 移除已有的版本标记
+  let content = baseContent.replace(/^<!-- version: .+ -->\n?/, "");
+  
+  // 根据平台调整内容
+  switch (target) {
+    case "cursor":
+      // Cursor 使用 .mdc 格式，需要添加 frontmatter
+      return `---
+description: TagTime CLI - Save and search notes from terminal
+globs: 
+alwaysApply: false
+---
+<!-- version: ${version} -->
+
+${content}`;
+    
+    case "copilot":
+      // GitHub Copilot 格式
+      return `<!-- version: ${version} -->
+<!-- TagTime CLI Instructions for GitHub Copilot -->
+
+${content}`;
+    
+    case "codex":
+      // Codex/OpenCode AGENTS.md 格式
+      return `<!-- version: ${version} -->
+<!-- TagTime CLI Agent Instructions -->
+
+${content}`;
+    
+    default:
+      // Claude 默认格式
+      return `<!-- version: ${version} -->\n${content}`;
+  }
+}
+
+// 安装到指定平台
+async function installToTarget(target: Exclude<AITarget, "all">, force = false, cwd?: string): Promise<string> {
+  const config = TARGET_CONFIGS[target];
+  const targetPath = config.getPath(cwd);
+  const builtinPath = getBuiltinSkillPath();
+  const version = await getBuiltinVersion();
+  
+  // 检查内置 SKILL.md 是否存在
+  try {
+    await stat(builtinPath);
+  } catch {
+    throw new Error(`Built-in SKILL.md not found at ${builtinPath}`);
+  }
+  
+  // 检查是否已安装
+  try {
+    await stat(targetPath);
+    if (!force) {
+      throw new Error(
+        `${config.name} instructions already exist at ${targetPath}. ` +
+        `Use --force to overwrite.`
+      );
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err;
+    }
+  }
+  
+  // 创建目录
+  await mkdir(dirname(targetPath), { recursive: true });
+  
+  // 读取基础内容并生成平台特定内容
+  const baseContent = await readFile(builtinPath, "utf-8");
+  const content = generateTargetContent(baseContent, target, version);
+  
+  // 写入文件
+  await writeFile(targetPath, content, "utf-8");
+  
+  return targetPath;
+}
+
+// 从指定平台卸载
+async function uninstallFromTarget(target: Exclude<AITarget, "all">, cwd?: string): Promise<string> {
+  const config = TARGET_CONFIGS[target];
+  const targetPath = config.getPath(cwd);
+  
+  try {
+    await stat(targetPath);
+  } catch {
+    throw new Error(`${config.name} instructions not found at ${targetPath}`);
+  }
+  
+  // Claude 删除整个目录，其他只删除文件
+  if (target === "claude") {
+    await rm(dirname(targetPath), { recursive: true });
+  } else {
+    await rm(targetPath);
+  }
+  
+  return targetPath;
+}
+
+// 检查指定平台的安装状态
+async function getTargetStatus(target: Exclude<AITarget, "all">, cwd?: string): Promise<{
+  installed: boolean;
+  path: string;
+  version: string | null;
+}> {
+  const config = TARGET_CONFIGS[target];
+  const targetPath = config.getPath(cwd);
+  
+  try {
+    await stat(targetPath);
+    const content = await readFile(targetPath, "utf-8");
+    const match = content.match(/^<!-- version: (.+) -->$/m);
+    return {
+      installed: true,
+      path: targetPath,
+      version: match ? match[1] : null,
+    };
+  } catch {
+    return {
+      installed: false,
+      path: targetPath,
+      version: null,
+    };
+  }
+}
+
+// 安装 Skill (保留旧函数以兼容)
 async function installSkill(force = false): Promise<void> {
   const builtinPath = getBuiltinSkillPath();
   const version = await getBuiltinVersion();
@@ -131,61 +298,111 @@ async function listSkills(): Promise<Array<{ name: string; path: string }>> {
 }
 
 export const skillCommand = new Command("skill")
-  .description("Manage Claude Code SKILL.md for AI assistance")
+  .description("Manage AI agent instructions for Claude, Codex, Cursor, and GitHub Copilot")
   .addCommand(
     new Command("install")
-      .description("Install SKILL.md to ~/.claude/skills/tagtime-cli/")
+      .description("Install AI instructions to specified platform(s)")
       .option("-f, --force", "Overwrite existing installation")
-      .action(async (options: { force?: boolean }) => {
-        try {
-          await installSkill(options.force);
-          success(`Skill installed to ${SKILL_FILE}`);
-          info("Claude Code will now recognize TagTime CLI commands.");
-          console.log();
-          console.log(chalk.dim("You may need to restart Claude Code for changes to take effect."));
-        } catch (err) {
-          error((err as Error).message);
+      .option("-t, --target <target>", "Target platform: claude, codex, cursor, copilot, or all", "claude")
+      .action(async (options: { force?: boolean; target?: string }) => {
+        const target = (options.target || "claude") as AITarget;
+        
+        if (target !== "all" && !ALL_TARGETS.includes(target as Exclude<AITarget, "all">)) {
+          error(`Invalid target: ${target}. Use: claude, codex, cursor, copilot, or all`);
           process.exit(1);
+        }
+        
+        const targets = target === "all" ? ALL_TARGETS : [target as Exclude<AITarget, "all">];
+        const results: { target: string; success: boolean; path?: string; error?: string }[] = [];
+        
+        for (const t of targets) {
+          try {
+            const path = await installToTarget(t, options.force);
+            results.push({ target: t, success: true, path });
+          } catch (err) {
+            results.push({ target: t, success: false, error: (err as Error).message });
+          }
+        }
+        
+        console.log();
+        console.log(chalk.bold("Installation Results"));
+        console.log();
+        
+        for (const r of results) {
+          const config = TARGET_CONFIGS[r.target as Exclude<AITarget, "all">];
+          if (r.success) {
+            console.log(`  ${chalk.green("✓")} ${config.name}`);
+            console.log(chalk.dim(`    ${r.path}`));
+          } else {
+            console.log(`  ${chalk.red("✗")} ${config.name}`);
+            console.log(chalk.dim(`    ${r.error}`));
+          }
+        }
+        
+        const successCount = results.filter(r => r.success).length;
+        if (successCount > 0) {
+          console.log();
+          info(`${successCount} platform(s) configured. You may need to restart your AI tool.`);
         }
       })
   )
   .addCommand(
     new Command("uninstall")
-      .description("Remove SKILL.md from Claude Code")
-      .action(async () => {
-        try {
-          await uninstallSkill();
-          success("Skill uninstalled successfully");
-        } catch (err) {
-          error((err as Error).message);
+      .description("Remove AI instructions from specified platform(s)")
+      .option("-t, --target <target>", "Target platform: claude, codex, cursor, copilot, or all", "claude")
+      .action(async (options: { target?: string }) => {
+        const target = (options.target || "claude") as AITarget;
+        
+        if (target !== "all" && !ALL_TARGETS.includes(target as Exclude<AITarget, "all">)) {
+          error(`Invalid target: ${target}. Use: claude, codex, cursor, copilot, or all`);
           process.exit(1);
+        }
+        
+        const targets = target === "all" ? ALL_TARGETS : [target as Exclude<AITarget, "all">];
+        
+        for (const t of targets) {
+          try {
+            const path = await uninstallFromTarget(t);
+            success(`Removed ${TARGET_CONFIGS[t].name} instructions from ${path}`);
+          } catch (err) {
+            if (target !== "all") {
+              error((err as Error).message);
+              process.exit(1);
+            }
+            // For "all", silently skip not installed targets
+          }
         }
       })
   )
   .addCommand(
     new Command("status")
-      .description("Check if SKILL.md is installed")
-      .action(async () => {
-        const installed = await isSkillInstalled();
+      .description("Check installation status across all platforms")
+      .option("-t, --target <target>", "Target platform: claude, codex, cursor, copilot, or all", "all")
+      .action(async (options: { target?: string }) => {
+        const target = (options.target || "all") as AITarget;
         const builtinVersion = await getBuiltinVersion();
+        const targets = target === "all" ? ALL_TARGETS : [target as Exclude<AITarget, "all">];
         
-        console.log(chalk.bold("TagTime CLI Skill Status"));
+        console.log(chalk.bold("TagTime CLI AI Agent Status"));
+        console.log(chalk.dim(`Built-in version: ${builtinVersion}`));
         console.log();
         
-        if (installed) {
-          const installedVersion = await getInstalledVersion();
-          console.log(`  ${chalk.green("●")} Installed`);
-          console.log(`  Version: ${installedVersion || "unknown"}`);
-          console.log(`  Path: ${SKILL_FILE}`);
+        for (const t of targets) {
+          const config = TARGET_CONFIGS[t];
+          const status = await getTargetStatus(t);
           
-          if (installedVersion && installedVersion !== builtinVersion) {
-            console.log();
-            warn(`A newer version (${builtinVersion}) is available. Run: tt skill install --force`);
+          console.log(`  ${config.name} ${chalk.dim(`(${config.description})`)}`);
+          if (status.installed) {
+            console.log(`    ${chalk.green("●")} Installed (v${status.version || "unknown"})`);
+            console.log(chalk.dim(`    ${status.path}`));
+            if (status.version && status.version !== builtinVersion) {
+              warn(`    Update available. Run: tt skill install -t ${t} --force`);
+            }
+          } else {
+            console.log(`    ${chalk.dim("○")} Not installed`);
+            console.log(chalk.dim(`    Install: tt skill install -t ${t}`));
           }
-        } else {
-          console.log(`  ${chalk.red("○")} Not installed`);
           console.log();
-          info(`Install with: tt skill install`);
         }
       })
   )
@@ -216,8 +433,14 @@ export const skillCommand = new Command("skill")
   .addCommand(
     new Command("path")
       .description("Print the skill installation path")
-      .action(() => {
-        console.log(SKILL_FILE);
+      .option("-t, --target <target>", "Target platform: claude, codex, cursor, copilot", "claude")
+      .action((options: { target?: string }) => {
+        const target = (options.target || "claude") as Exclude<AITarget, "all">;
+        if (!ALL_TARGETS.includes(target)) {
+          error(`Invalid target: ${target}. Use: claude, codex, cursor, or copilot`);
+          process.exit(1);
+        }
+        console.log(TARGET_CONFIGS[target].getPath());
       })
   )
   .addCommand(
@@ -235,37 +458,34 @@ export const skillCommand = new Command("skill")
       })
   );
 
-// 默认行为：显示状态
+// 默认行为：显示所有平台状态
 skillCommand.action(async () => {
-  // 运行 status 子命令
-  const installed = await isSkillInstalled();
   const builtinVersion = await getBuiltinVersion();
   
-  console.log(chalk.bold("TagTime CLI Skill"));
+  console.log(chalk.bold("TagTime CLI - AI Agent Integration"));
+  console.log(chalk.dim(`Built-in version: ${builtinVersion}`));
   console.log();
   
-  if (installed) {
-    const installedVersion = await getInstalledVersion();
-    console.log(`  Status: ${chalk.green("Installed")}`);
-    console.log(`  Version: ${installedVersion || "unknown"}`);
-    console.log(`  Path: ${SKILL_FILE}`);
+  console.log(chalk.bold("Supported Platforms:"));
+  console.log();
+  
+  for (const t of ALL_TARGETS) {
+    const config = TARGET_CONFIGS[t];
+    const status = await getTargetStatus(t);
     
-    if (installedVersion && installedVersion !== builtinVersion) {
-      console.log();
-      warn(`Update available (${builtinVersion}). Run: tt skill install --force`);
-    }
-  } else {
-    console.log(`  Status: ${chalk.yellow("Not installed")}`);
-    console.log();
-    console.log("  Install the skill to enable Claude Code AI assistance:");
-    console.log(chalk.cyan("    tt skill install"));
+    const marker = status.installed ? chalk.green("●") : chalk.dim("○");
+    const statusText = status.installed 
+      ? chalk.green(`Installed (v${status.version || "unknown"})`)
+      : chalk.dim("Not installed");
+    
+    console.log(`  ${marker} ${config.name} - ${statusText}`);
   }
   
   console.log();
-  console.log(chalk.dim("Available commands:"));
-  console.log(chalk.dim("  tt skill install    Install SKILL.md"));
-  console.log(chalk.dim("  tt skill uninstall  Remove SKILL.md"));
-  console.log(chalk.dim("  tt skill status     Check installation status"));
-  console.log(chalk.dim("  tt skill list       List all Claude skills"));
-  console.log(chalk.dim("  tt skill show       Display SKILL.md content"));
+  console.log(chalk.dim("Commands:"));
+  console.log(chalk.dim("  tt skill install -t <target>   Install to platform (claude/codex/cursor/copilot/all)"));
+  console.log(chalk.dim("  tt skill install -t all        Install to all platforms"));
+  console.log(chalk.dim("  tt skill uninstall -t <target> Remove from platform"));
+  console.log(chalk.dim("  tt skill status                Check all platforms"));
+  console.log(chalk.dim("  tt skill show                  Display instructions content"));
 });

@@ -1,57 +1,12 @@
 # TagTime CLI (`tt`)
 
-<p align="center">
-  <strong>🚀 Save and search notes from your terminal</strong>
-</p>
+> Save and search notes from terminal. Works with local folders, Obsidian/Logseq, or TagTime cloud.
+> Current version: 0.1.3 · GitHub: https://github.com/aleSheng/tt
 
-<p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="#local-mode">Local Mode</a> •
-  <a href="#cloud-mode">Cloud Mode</a> •
-  <a href="#ai-agent-integration">AI Integration</a>
-</p>
+- Local-first: index plain folders, Obsidian vaults, and Logseq graphs (works offline).
 
-<p align="center">
-  <img src="https://img.shields.io/npm/v/@tagtime/cli?color=blue&label=npm" alt="npm version" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform" />
-</p>
 
----
-
-Works seamlessly with **any local folder**, **Obsidian**, **Logseq**, or **TagTimeAI**. Lightning-fast full-text search with fuzzy matching powered by MiniSearch.
-
-## ✨ Features
-
-- 📁 **Universal Vault Support** - Plain folders, Obsidian, Logseq, or any markdown-based system
-- 🔍 **Smart Search** - Fuzzy matching, prefix search, tag filtering
-- ☁️ **Cloud Sync** - Optional TagTimeAI cloud for cross-device access
-- 🤖 **AI Ready** - Built-in Claude Code skill for AI-assisted note-taking
-- ⚡ **Blazing Fast** - Indexed search across thousands of notes
-- 🔧 **Pipe Friendly** - Unix philosophy: works great with `|`
-
-## 🌐 About TagTime
-
-[TagTime.ai](https://tagtime.ai) is a modern knowledge management platform designed for developers, researchers, and lifelong learners. It helps you:
-
-- **Capture** fleeting ideas and insights instantly
-- **Organize** knowledge with smart tagging and full-text search
-- **Connect** thoughts across devices with cloud sync
-- **Integrate** seamlessly with your existing workflow (Obsidian, Logseq, VS Code, CLI)
-
-This CLI (`tt`) is the command-line interface for TagTime, enabling terminal-first users to manage their knowledge base without leaving the command line. Use it standalone with local vaults, or connect to [TagTime.ai](https://tagtime.ai) for cloud features.
-
-## 📦 Installation
-
-```bash
-npm install -g @tagtime/cli
-# or
-pnpm add -g @tagtime/cli
-```
-
-## 🚀 Quick Start
-
+## Quick Start
 
 ```bash
 # Local mode - any folder works!
@@ -68,11 +23,9 @@ tt save "Your note"
 tt search "keyword"
 ```
 
-## 📂 Local Mode
+## Local Mode
 
 Work with **any local folder** - no need for Obsidian or cloud services.
-
-### Vault Management
 
 ```bash
 # Add any folder as vault
@@ -83,23 +36,17 @@ tt vault add obsidian ~/Obsidian/Vault        # Auto-detects Obsidian
 tt vault add logseq ~/Logseq/Graph            # Auto-detects Logseq
 
 # Manage vaults
-tt vault list                # List all vaults
-tt vault use <name>          # Switch active vault
-tt vault info                # Show current vault details
-tt vault remove <name>       # Remove vault
-```
+tt vault list
+tt vault use <name>
+tt vault info
+tt vault remove <name>
 
-### Mode Switching
-
-```bash
+# Switch modes
 tt mode              # Show current mode
 tt mode local        # Switch to local
 tt mode cloud        # Switch to cloud
-```
 
-### Search & Retrieve
-
-```bash
+# Local operations
 tt search "keyword"                    # Full-text search (fuzzy + prefix)
 tt search "javascrpt"                  # Fuzzy match → "javascript"
 tt search "type"                       # Prefix match → "typescript"
@@ -113,63 +60,47 @@ tt save "content" --title "Note"       # Save note
 tt save "log" --folder "Daily" --daily # Append to daily note
 ```
 
-## ☁️ Cloud Mode
-
-### Authentication
+## Cloud Mode Commands
 
 ```bash
+# Auth
 tt login                  # Interactive login
 tt login --token KEY      # API key login
 tt whoami                 # Check login status
-```
 
-### Save Notes
-
-```bash
-tt save "content"                              # Save text
+# Save
+tt save "content"         # Save text
 tt save "content" --title "Title" --tags "tag1,tag2"
-tt save ./file.md                              # Save file
-echo "content" | tt save                       # Pipe input
-git diff | tt save -t "Changes"                # Pipe with title
-```
+tt save ./file.md         # Save file
+echo "content" | tt save  # Pipe input
+git diff | tt save -t "Changes"  # Pipe with title
 
-### Search & Retrieve
-
-```bash
+# Search
 tt search "keyword"       # Search
 tt search "keyword" -n 5  # Limit results
 tt search "keyword" --json
 
+# Get
 tt get @1                 # Get Nth result from last search
 tt get abc123             # Get by ID
 tt get @1 -o ./out.md     # Save to file
 
+# Recent
 tt recent                 # List recent items
 tt recent -n 5 --json
+
+# Import
+tt import ./notes/*.md    # Import multiple files
+tt import ./notes/ -r     # Import directory recursively
+tt import ./docs/ --tags "work" --dry-run
+
+# Export
+tt export -o ./backup/    # Export all to directory
+tt export -o ./backup/ --tag "work"  # Export by tag
+tt export -o ./backup/ --format json --include-metadata
 ```
 
-## 🔄 Import & Export
-
-### Import
-
-```bash
-tt import ./notes/*.md                      # Import multiple files
-tt import ./vault/ --recursive --tags "imported"  # Recursive
-tt import ./docs/ --dry-run                 # Preview without importing
-tt import ./notes/ --ignore "*.draft.md"   # Ignore patterns
-```
-
-### Export
-
-```bash
-tt export -o ./backup/                      # Export all
-tt export -o ./work/ --tag "work"           # Filter by tag
-tt export -o ./backup/ --search "project"  # Filter by search
-tt export -o ./data/ --format json --include-metadata
-tt export -o ./backup/ --filename-template "{date}-{title}"
-```
-
-## 🔧 Pipe Input Examples
+## Pipe Input Examples
 
 ```bash
 # Save command output
@@ -177,55 +108,89 @@ git log --oneline -10 | tt save --title "Recent commits"
 docker logs app | tt save --tags "docker,debug"
 curl https://api.example.com | tt save -t "API Response"
 
-# Save clipboard
-pbpaste | tt save --title "From clipboard"   # macOS
-powershell Get-Clipboard | tt save           # Windows
-xclip -selection clipboard -o | tt save      # Linux
+# Save clipboard (macOS)
+pbpaste | tt save --title "From clipboard"
 
 # Save with auto-generated title
 cat README.md | tt save
 ```
 
-## 🤖 AI Agent Integration
-
-Install the Claude Code skill for seamless AI assistance:
+## Batch Import
 
 ```bash
-tt skill install      # Install SKILL.md
-tt skill status       # Check status
-tt skill list         # List all installed skills
-tt skill uninstall    # Uninstall
+# Import markdown files
+tt import ./notes/*.md
+
+# Import directory recursively
+tt import ./vault/ --recursive --tags "imported"
+
+# Preview without importing
+tt import ./docs/ --dry-run
+
+# Ignore certain files
+tt import ./notes/ --ignore "*.draft.md" --ignore "temp/*"
 ```
 
-This enables Claude Code to understand and use TagTime CLI commands for AI-assisted note-taking and knowledge management.
+## Export
 
-## ⚙️ Configuration
+```bash
+# Export all materials
+tt export -o ./backup/
 
-Config file location: `~/.config/tagtime/config.json`
+# Export with filters
+tt export -o ./work/ --tag "work"
+tt export -o ./backup/ --search "project"
 
-| Setting | Description |
-|---------|-------------|
-| `mode` | Current mode: `local` or `cloud` |
-| `activeVault` | Active vault name for local mode |
-| `vaults` | List of configured vaults |
-| `apiToken` | API token for cloud mode |
+# Export as JSON with metadata
+tt export -o ./data/ --format json --include-metadata
 
-## 🛠️ Development
+# Custom filename template
+tt export -o ./backup/ --filename-template "{date}-{title}"
+```
+
+## AI Agent Integration
+
+Install instructions for your preferred AI coding assistant:
+
+```bash
+# Install to Claude Code (default)
+tt skill install
+
+# Install to specific platform
+tt skill install -t claude      # Claude Code → ~/.claude/skills/
+tt skill install -t codex       # OpenAI Codex CLI / OpenCode → ./AGENTS.md
+tt skill install -t cursor      # Cursor → ./.cursor/rules/
+tt skill install -t copilot     # GitHub Copilot → ./.github/copilot-instructions.md
+
+# Install to all platforms at once
+tt skill install -t all
+
+# Check status across all platforms
+tt skill status
+
+# Uninstall
+tt skill uninstall -t claude    # Remove from specific platform
+tt skill uninstall -t all       # Remove from all platforms
+```
+
+| Platform | File Location |
+|----------|---------------|
+| Claude Code | `~/.claude/skills/tagtime-cli/SKILL.md` |
+| Codex CLI / OpenCode | `./AGENTS.md` (project root) |
+| Cursor | `./.cursor/rules/tagtime.mdc` |
+| GitHub Copilot | `./.github/copilot-instructions.md` |
+
+This enables AI assistants to understand and use TagTime CLI commands.
+
+## Config
+
+Config file: `~/.config/tagtime/config.json`
+
+## Development
 
 ```bash
 pnpm install        # Install dependencies
-pnpm dev            # Dev mode with watch
-pnpm build          # Build for production
-pnpm test           # Run tests
-pnpm typecheck      # Type checking
+pnpm dev            # Dev mode
+pnpm build          # Build
+pnpm test           # Test
 ```
-
-## 📄 License
-
-MIT © [TagTime](https://tagtime.ai)
-
----
-
-<p align="center">
-  <sub>Made with ❤️ for note-taking enthusiasts</sub>
-</p>
