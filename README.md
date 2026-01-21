@@ -20,16 +20,27 @@
 
 ---
 
-Works seamlessly with **any local folder**, **Obsidian**, **Logseq**, or **TagTime cloud**. Lightning-fast full-text search with fuzzy matching powered by MiniSearch.
+Works seamlessly with **any local folder**, **Obsidian**, **Logseq**, or **TagTimeAI**. Lightning-fast full-text search with fuzzy matching powered by MiniSearch.
 
 ## ✨ Features
 
 - 📁 **Universal Vault Support** - Plain folders, Obsidian, Logseq, or any markdown-based system
 - 🔍 **Smart Search** - Fuzzy matching, prefix search, tag filtering
-- ☁️ **Cloud Sync** - Optional TagTime cloud for cross-device access
+- ☁️ **Cloud Sync** - Optional TagTimeAI cloud for cross-device access
 - 🤖 **AI Ready** - Built-in Claude Code skill for AI-assisted note-taking
 - ⚡ **Blazing Fast** - Indexed search across thousands of notes
 - 🔧 **Pipe Friendly** - Unix philosophy: works great with `|`
+
+## 🌐 About TagTime
+
+[TagTime.ai](https://tagtime.ai) is a modern knowledge management platform designed for developers, researchers, and lifelong learners. It helps you:
+
+- **Capture** fleeting ideas and insights instantly
+- **Organize** knowledge with smart tagging and full-text search
+- **Connect** thoughts across devices with cloud sync
+- **Integrate** seamlessly with your existing workflow (Obsidian, Logseq, VS Code, CLI)
+
+This CLI (`tt`) is the command-line interface for TagTime, enabling terminal-first users to manage their knowledge base without leaving the command line. Use it standalone with local vaults, or connect to [TagTime.ai](https://tagtime.ai) for cloud features.
 
 ## 📦 Installation
 
@@ -175,7 +186,7 @@ xclip -selection clipboard -o | tt save      # Linux
 cat README.md | tt save
 ```
 
-## 🤖 🤖 AI Agent Integration
+## 🤖 AI Agent Integration
 
 Install the Claude Code skill for seamless AI assistance:
 
