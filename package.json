@@ -1,6 +1,6 @@
 {
   "name": "@tagtime/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "TagTime CLI - Save and search notes from terminal",
   "type": "module",
   "main": "./dist/index.js",

@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("tt")
   .description("TagTime CLI - Save and search notes from terminal")
-  .version("0.1.0");
+  .version("0.1.5");
 
 // Register commands
 program.addCommand(loginCommand);

@@ -1,196 +1,230 @@
 # TagTime CLI (`tt`)
 
-> Save and search notes from terminal. Works with local folders, Obsidian/Logseq, or TagTime cloud.
-> Current version: 0.1.3 · GitHub: https://github.com/aleSheng/tt
+> External memory for AI Agents. Save decisions, search context, build knowledge — from terminal.
 
-- Local-first: index plain folders, Obsidian vaults, and Logseq graphs (works offline).
+Current version: 0.1.5 · [GitHub](https://github.com/aleSheng/tt) · [中文](./README.zh-CN.md)
 
+## Why tt?
+
+**AI is stateless. Your projects aren't.**
+
+Every time you start a new AI conversation, context is lost:
+- *"We decided to use Zod for validation because..."* — forgotten
+- *"The API error format should be..."* — explain again
+- *"Don't use default exports in this project"* — AI doesn't know
+
+**tt gives AI persistent memory.**
+
+```bash
+# Save a project decision
+tt save "Use Zod for validation - better TS inference than Yup" --title "Validation Choice"
+
+# Later, AI (or you) can retrieve it
+tt search "validation"
+tt get @1
+```
+
+Works with local folders, Obsidian/Logseq vaults, or TagTime cloud. Local-first, works offline.
+
+---
 
 ## Quick Start
 
 ```bash
-# Local mode - any folder works!
-tt vault add notes ~/Documents/notes    # Plain folder
-tt vault add obsidian ~/Obsidian/Vault  # Or Obsidian vault
+# 1. Add your notes folder (any folder works)
+tt vault add notes ~/Documents/notes
 tt mode local
-tt search "keyword"
-tt get @1
-tt save "Quick note" --title "Idea"
 
-# Cloud mode
+# 2. Save knowledge
+tt save "Always use pnpm in this project, not npm" --title "Package Manager"
+
+# 3. Retrieve context
+tt search "package manager"
+tt get @1
+
+# Cloud mode (sync across devices)
 tt login
 tt save "Your note"
-tt search "keyword"
 ```
+
+## How AI Agents Use tt
+
+```bash
+# AI saves a decision during coding
+tt save "Chose Prisma over Drizzle - team familiar with Prisma" --tags "decisions"
+
+# AI retrieves context before starting a task
+tt search "database orm"
+
+# AI captures learnings
+git diff | tt save --title "Auth refactoring - extracted useToken hook"
+```
+
+**Install skill for your AI assistant:**
+```bash
+tt skill install              # Claude Code (default)
+tt skill install -t cursor    # Cursor
+tt skill install -t copilot   # GitHub Copilot
+tt skill install -t all       # All platforms
+```
+
+---
+
+## Core Commands
+
+### Save — Capture knowledge
+
+```bash
+tt save "content"                      # Quick save
+tt save "content" --title "Title"      # With title
+tt save "content" --tags "tag1,tag2"   # With tags
+tt save ./file.md                      # Save file
+echo "content" | tt save               # Pipe input
+
+# Capture command output
+git log --oneline -10 | tt save --title "Recent commits"
+git diff | tt save --title "Today's changes"
+```
+
+### Search — Find context
+
+```bash
+tt search "keyword"                    # Full-text search (fuzzy)
+tt search "validation library"         # Semantic-ish search
+tt search "auth" --folder "decisions"  # Filter by folder
+tt search "api" --tag "conventions"    # Filter by tag
+tt search "keyword" --json             # JSON output (for AI)
+```
+
+### Get — Retrieve content
+
+```bash
+tt get @1                   # Get first result from last search
+tt get @2                   # Get second result
+tt get "path/to/note.md"    # Get by path
+tt get @1 --raw             # Content only, no formatting
+```
+
+---
 
 ## Local Mode
 
-Work with **any local folder** - no need for Obsidian or cloud services.
+Work with **any local folder** — plain markdown, Obsidian, or Logseq.
+
+## Vault Management
 
 ```bash
-# Add any folder as vault
+# Add vault
 tt vault add <name> <path>
-tt vault add notes ~/Documents/notes          # Plain markdown folder
-tt vault add work ~/Projects/work-notes       # Any folder works
+tt vault add notes ~/Documents/notes          # Plain markdown
 tt vault add obsidian ~/Obsidian/Vault        # Auto-detects Obsidian
 tt vault add logseq ~/Logseq/Graph            # Auto-detects Logseq
 
-# Manage vaults
+# Manage
 tt vault list
 tt vault use <name>
 tt vault info
 tt vault remove <name>
 
 # Switch modes
-tt mode              # Show current mode
-tt mode local        # Switch to local
-tt mode cloud        # Switch to cloud
-
-# Local operations
-tt search "keyword"                    # Full-text search (fuzzy + prefix)
-tt search "javascrpt"                  # Fuzzy match → "javascript"
-tt search "type"                       # Prefix match → "typescript"
-tt search "rust" --folder "Programming"
-tt search "guide" --tag tutorial       # Filter by tag
-tt search "keyword" --exact            # Exact match only
-tt search "keyword" --rebuild-index    # Force rebuild index
-tt get @1                              # Get search result
-tt get "path/to/note.md"               # Get by path
-tt save "content" --title "Note"       # Save note
-tt save "log" --folder "Daily" --daily # Append to daily note
+tt mode              # Show current
+tt mode local        # Local mode
+tt mode cloud        # Cloud mode
 ```
 
-## Cloud Mode Commands
+---
+
+## Cloud Mode
+
+Sync across devices with TagTime cloud.
 
 ```bash
 # Auth
 tt login                  # Interactive login
 tt login --token KEY      # API key login
-tt whoami                 # Check login status
+tt whoami                 # Check status
 
-# Save
-tt save "content"         # Save text
-tt save "content" --title "Title" --tags "tag1,tag2"
-tt save ./file.md         # Save file
-echo "content" | tt save  # Pipe input
-git diff | tt save -t "Changes"  # Pipe with title
-
-# Search
-tt search "keyword"       # Search
-tt search "keyword" -n 5  # Limit results
-tt search "keyword" --json
-
-# Get
-tt get @1                 # Get Nth result from last search
-tt get abc123             # Get by ID
-tt get @1 -o ./out.md     # Save to file
+# Save/Search/Get — same as local mode
+tt save "content" --title "Title"
+tt search "keyword"
+tt get @1
 
 # Recent
-tt recent                 # List recent items
-tt recent -n 5 --json
+tt recent                 # List recent
+tt recent -n 5
 
-# Import
-tt import ./notes/*.md    # Import multiple files
-tt import ./notes/ -r     # Import directory recursively
-tt import ./docs/ --tags "work" --dry-run
-
-# Export
-tt export -o ./backup/    # Export all to directory
-tt export -o ./backup/ --tag "work"  # Export by tag
-tt export -o ./backup/ --format json --include-metadata
+# Batch operations
+tt import ./notes/*.md              # Import files
+tt import ./notes/ -r               # Recursive
+tt export -o ./backup/              # Export all
+tt export -o ./backup/ --tag "work" # Export filtered
 ```
 
-## Pipe Input Examples
+---
+
+## Pipe Input
+
+Perfect for capturing command output:
 
 ```bash
-# Save command output
 git log --oneline -10 | tt save --title "Recent commits"
-docker logs app | tt save --tags "docker,debug"
+git diff | tt save --title "Changes"
+docker logs app | tt save --tags "debug"
 curl https://api.example.com | tt save -t "API Response"
-
-# Save clipboard (macOS)
-pbpaste | tt save --title "From clipboard"
-
-# Save with auto-generated title
-cat README.md | tt save
+pbpaste | tt save --title "From clipboard"  # macOS
 ```
 
-## Batch Import
-
-```bash
-# Import markdown files
-tt import ./notes/*.md
-
-# Import directory recursively
-tt import ./vault/ --recursive --tags "imported"
-
-# Preview without importing
-tt import ./docs/ --dry-run
-
-# Ignore certain files
-tt import ./notes/ --ignore "*.draft.md" --ignore "temp/*"
-```
-
-## Export
-
-```bash
-# Export all materials
-tt export -o ./backup/
-
-# Export with filters
-tt export -o ./work/ --tag "work"
-tt export -o ./backup/ --search "project"
-
-# Export as JSON with metadata
-tt export -o ./data/ --format json --include-metadata
-
-# Custom filename template
-tt export -o ./backup/ --filename-template "{date}-{title}"
-```
+---
 
 ## AI Agent Integration
 
-Install instructions for your preferred AI coding assistant:
+Let AI assistants use tt as their external memory:
 
 ```bash
-# Install to Claude Code (default)
-tt skill install
+tt skill install              # Claude Code (default)
+tt skill install -t cursor    # Cursor
+tt skill install -t codex     # OpenAI Codex CLI / OpenCode
+tt skill install -t copilot   # GitHub Copilot
+tt skill install -t all       # All platforms
 
-# Install to specific platform
-tt skill install -t claude      # Claude Code → ~/.claude/skills/
-tt skill install -t codex       # OpenAI Codex CLI / OpenCode → ./AGENTS.md
-tt skill install -t cursor      # Cursor → ./.cursor/rules/
-tt skill install -t copilot     # GitHub Copilot → ./.github/copilot-instructions.md
-
-# Install to all platforms at once
-tt skill install -t all
-
-# Check status across all platforms
-tt skill status
-
-# Uninstall
-tt skill uninstall -t claude    # Remove from specific platform
-tt skill uninstall -t all       # Remove from all platforms
+tt skill status               # Check installation
+tt skill uninstall -t all     # Remove
 ```
 
 | Platform | File Location |
 |----------|---------------|
 | Claude Code | `~/.claude/skills/tagtime-cli/SKILL.md` |
-| Codex CLI / OpenCode | `./AGENTS.md` (project root) |
+| Codex / OpenCode | `./AGENTS.md` |
 | Cursor | `./.cursor/rules/tagtime.mdc` |
 | GitHub Copilot | `./.github/copilot-instructions.md` |
 
-This enables AI assistants to understand and use TagTime CLI commands.
+---
 
 ## Config
 
-Config file: `~/.config/tagtime/config.json`
+Config: `~/.config/tagtime/config.json`
+
+---
 
 ## Development
 
 ```bash
-pnpm install        # Install dependencies
+pnpm install        # Install
 pnpm dev            # Dev mode
 pnpm build          # Build
 pnpm test           # Test
+```
+
+---
+
+## Philosophy
+
+Traditional note tools store information for humans to read later.
+
+**tt stores context for AI to use now.**
+
+In the age of vibe coding, your knowledge base isn't just for you — it's working memory for AI agents that help you build software. Every decision saved is context that doesn't need to be re-explained.
+
+```
+Human saves decision → tt stores it → AI retrieves it → Better code
 ```
